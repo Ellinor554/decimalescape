@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matte-Escape: Cyber-Labbet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Press+Start+2P&display=swap');
+        
+        body {
+            background-color: #0d1117;
+            color: #e6edf3;
+            font-family: 'Orbitron', sans-serif;
+            background-image: radial-gradient(#1a202c 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        .pixel-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        .cyber-card {
+            background: rgba(22, 27, 34, 0.95);
+            border: 2px solid #3081f7;
+            box-shadow: 0 0 20px rgba(48, 129, 247, 0.3), inset 0 0 10px rgba(48, 129, 247, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cyber-card::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 4px;
+            background: linear-gradient(90deg, transparent, #3081f7, transparent);
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .hidden { display: none; }
+
+        .correct-flash {
+            animation: flash 0.5s ease-out;
+        }
+
+        @keyframes flash {
+            0% { border-color: #48bb78; box-shadow: 0 0 40px #48bb78; }
+            100% { border-color: #3081f7; }
+        }
+
+        .shake { animation: shake 0.4s linear; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        .timer-glow {
+            text-shadow: 0 0 10px rgba(48, 129, 247, 0.8);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div id="game-container" class="max-w-xl w-full">
+        <!-- Startskärm -->
+        <div id="start-screen" class="cyber-card p-10 text-center rounded-2xl">
+            <h1 class="pixel-font text-2xl mb-8 text-blue-400 leading-relaxed">CYBER LABB ESCAPE</h1>
+            <div class="mb-8 space-y-4 text-gray-300">
+                <p>Systemet har låst sig! Du behöver 14 säkerhetskoder för att låsa upp terminalen.</p>
+                <p class="text-sm font-bold text-yellow-500 uppercase">Varning: Systemet loggar din tid!</p>
+            </div>
+            <button onclick="startGame()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-10 rounded-lg border-b-4 border-blue-900 transition-all transform hover:scale-105">
+                INLED DEKRYPTERING
+            </button>
+        </div>
+
+        <!-- Spelskärm -->
+        <div id="play-screen" class="cyber-card p-8 rounded-2xl hidden">
+            <div class="flex justify-between items-center mb-10 pb-4 border-b border-gray-700">
+                <div class="text-left">
+                    <span id="level-indicator" class="text-xs font-bold text-blue-400 block mb-1">TERMINAL 01 / 14</span>
+                    <div id="timer" class="timer-glow text-xl font-bold text-white">00:00</div>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-gray-500 block">SÄKERHETSSTATUS</span>
+                    <span id="score" class="text-green-500 font-bold">STABIL</span>
+                </div>
+            </div>
+            
+            <div id="task-container" class="mb-10 text-center">
+                <h2 id="category-title" class="text-blue-500 text-xs mb-4 uppercase tracking-[0.2em]">Krypteringsnyckel</h2>
+                <div id="math-problem" class="text-5xl font-bold mb-6 tracking-wider text-white">212,8 + 77,5</div>
+                <p class="text-gray-500 text-sm italic">Använd decimalkomma ( , ) vid inmatning</p>
+            </div>
+
+            <div class="relative mb-6">
+                <input type="text" id="answer-input" autocomplete="off"
+                    class="w-full p-5 bg-gray-900 border-2 border-gray-700 rounded-xl text-center text-3xl text-blue-400 focus:outline-none focus:border-blue-500 transition-all font-mono"
+                    placeholder="0,00">
+            </div>
+
+            <button onclick="checkAnswer()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-5 rounded-xl border-b-4 border-blue-900 transition-all active:translate-y-1">
+                EXEKVERA KOD
+            </button>
+
+            <div id="feedback" class="mt-6 h-6 text-center font-bold tracking-widest text-sm uppercase"></div>
+        </div>
+
+        <!-- Slutskärm -->
+        <div id="end-screen" class="cyber-card p-12 rounded-2xl hidden text-center">
+            <h2 class="pixel-font text-2xl mb-6 text-green-400">SYSTEMET UPPLÅST</h2>
+            <p class="text-gray-400 mb-8 uppercase tracking-widest">Bra jobbat, operatör!</p>
+            
+            <div class="bg-gray-900 p-6 rounded-xl border border-gray-700 mb-10">
+                <p class="text-gray-500 text-xs mb-2">DIN TOTALA TID</p>
+                <div id="final-time" class="text-4xl font-bold text-yellow-400 timer-glow">00:00</div>
+            </div>
+
+            <button onclick="location.reload()" class="text-blue-400 hover:text-blue-300 font-bold uppercase tracking-widest text-sm underline transition-colors">
+                Logga in igen
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const levels = [
+            // Addition
+            { q: "49,80 + 7,65", a: "57,45", cat: "Säkerhetslager 1" },
+            { q: "212,8 + 77,5", a: "290,3", cat: "Säkerhetslager 2" },
+            // Subtraktion
+            { q: "131,2 - 47,6", a: "83,6", cat: "Säkerhetslager 3" },
+            { q: "85,45 - 17,90", a: "67,55", cat: "Säkerhetslager 4" },
+            { q: "7,54 - 2,90", a: "4,64", cat: "Säkerhetslager 5" },
+            // Multiplikation
+            { q: "12,3 × 7", a: "86,1", cat: "Säkerhetslager 6" },
+            { q: "31,6 × 5", a: "158", cat: "Säkerhetslager 7" },
+            { q: "7,54 × 5", a: "37,7", cat: "Säkerhetslager 8" },
+            // Division
+            { q: "15,6 / 3", a: "5,2", cat: "Säkerhetslager 9" },
+            { q: "52,5 / 5", a: "10,5", cat: "Säkerhetslager 10" },
+            { q: "0,848 / 8", a: "0,106", cat: "Säkerhetslager 11" },
+            // 10 / 100 / 1000
+            { q: "100 × 0,716", a: "71,6", cat: "Säkerhetslager 12" },
+            { q: "4,512 × 1000", a: "4512", cat: "Säkerhetslager 13" },
+            { q: "123,7 / 1000", a: "0,1237", cat: "Säkerhetslager 14" }
+        ];
+
+        let currentLevel = 0;
+        let startTime;
+        let timerInterval;
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('play-screen').classList.remove('hidden');
+            startTime = Date.now();
+            startTimer();
+            loadLevel();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                document.getElementById('timer').innerText = formatTime(elapsed);
+            }, 1000);
+        }
+
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function loadLevel() {
+            const level = levels[currentLevel];
+            document.getElementById('level-indicator').innerText = `TERMINAL ${String(currentLevel + 1).padStart(2, '0')} / ${levels.length}`;
+            document.getElementById('category-title').innerText = level.cat;
+            document.getElementById('math-problem').innerText = level.q;
+            document.getElementById('answer-input').value = '';
+            document.getElementById('answer-input').focus();
+            document.getElementById('feedback').innerText = '';
+        }
+
+        function checkAnswer() {
+            const input = document.getElementById('answer-input').value.trim().replace('.', ',');
+            const correctAnswer = levels[currentLevel].a.replace('.', ',');
+            const playScreen = document.getElementById('play-screen');
+            const feedback = document.getElementById('feedback');
+
+            if (input === correctAnswer) {
+                feedback.innerText = "> KOD ACCEPTERAD";
+                feedback.className = "mt-6 h-6 text-center font-bold tracking-widest text-sm uppercase text-green-500";
+                playScreen.classList.add('correct-flash');
+                
+                setTimeout(() => {
+                    playScreen.classList.remove('correct-flash');
+                    currentLevel++;
+                    if (currentLevel < levels.length) {
+                        loadLevel();
+                    } else {
+                        finishGame();
+                    }
+                }, 600);
+            } else {
+                feedback.innerText = "> ÅTKOMST NEKAD";
+                feedback.className = "mt-6 h-6 text-center font-bold tracking-widest text-sm uppercase text-red-500";
+                playScreen.classList.add('shake');
+                setTimeout(() => playScreen.classList.remove('shake'), 400);
+            }
+        }
+
+        function finishGame() {
+            clearInterval(timerInterval);
+            const finalTime = document.getElementById('timer').innerText;
+            document.getElementById('play-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+            document.getElementById('final-time').innerText = finalTime;
+        }
+
+        document.getElementById('answer-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') checkAnswer();
+        });
+    </script>
+</body>
+</html>
